@@ -4,10 +4,10 @@ var peer = Math.random().toString(36).substr(2)
 // http
 // ***************************
 
-function braidify_http (http) {
+function braidify_http(http) {
     // Todo:  Wrap .put to add `peer` header
     http.normal_get = http.get
-    http.get = function braid_req (arg1, arg2, arg3) {
+    http.get = function braid_req(arg1, arg2, arg3) {
         var url, options, cb
 
         // http.get() supports two forms:
@@ -87,7 +87,7 @@ function braidify_http (http) {
             }
             orig_cb && orig_cb(res)
         }
-            
+
         // Now put the parameters back in their prior order and call the
         // underlying .get() function
         if (url) {
@@ -140,7 +140,7 @@ if (is_nodejs) {
 }
 
 
-function braid_fetch (url, params = {}) {
+function braid_fetch(url, params = {}) {
     // Initialize the headers object
     if (!params.headers)
         params.headers = new Headers()
@@ -148,7 +148,7 @@ function braid_fetch (url, params = {}) {
         params.headers = new Headers(params.headers)
 
     // Always set the peer
-    params.headers.set('peer', peer)
+    params.headers.set('peer', params.peer)
 
     // We provide some shortcuts for Braid params
     if (params.version)
@@ -209,7 +209,7 @@ function braid_fetch (url, params = {}) {
         // Run the actual fetch here!
         var fetched = normal_fetch(url, params)
 
-        function start_subscription (cb, error) {
+        function start_subscription(cb, error) {
             fetched.then(function (res) {
                 if (!res.ok)
                     error(new Error('Subscription request failed', res))
@@ -239,10 +239,10 @@ function braid_fetch (url, params = {}) {
                     }
                 )
             })
-            // This catch will run if the initial fetch request fails to
-            // connect.  The error handling code above, on the other hand,
-            // runs if the response while the connection is held open.
-            .catch(error)
+                // This catch will run if the initial fetch request fails to
+                // connect.  The error handling code above, on the other hand,
+                // runs if the response while the connection is held open.
+                .catch(error)
         }
 
         // If this is a subscribe, then:
@@ -263,7 +263,7 @@ function braid_fetch (url, params = {}) {
                 // Each time next() is called, it creates a promise and stores
                 // the resolve and reject functions here.
                 resolve: null,
-                reject:  null,
+                reject: null,
 
                 async next() {
                     // Start the subscription
@@ -273,14 +273,14 @@ function braid_fetch (url, params = {}) {
                         // The subscription will call whichever resolve and
                         // reject functions the current promise is waiting for
                         start_subscription(x => this.resolve(x),
-                                           x => this.reject(x) )
+                            x => this.reject(x))
                     }
 
                     // Now create a new promise, and wait for the subscription
                     // (above) to resolve or reject it.
                     var result = await new Promise((resolve, reject) => {
                         this.resolve = resolve
-                        this.reject  = reject
+                        this.reject = reject
                     })
 
                     // Sanity check: I want to make sure that the subscription
@@ -288,8 +288,8 @@ function braid_fetch (url, params = {}) {
                     // through another loop of the iterator and created the
                     // new promise.
                     var tellme = 'Error! Please tell toomim@gmail.com that this happened.'
-                    this.resolve = () => {throw tellme}
-                    this.reject  = () => {throw tellme}
+                    this.resolve = () => { throw tellme }
+                    this.reject = () => { throw tellme }
 
                     return { done: false, value: result }
                 }
@@ -303,14 +303,14 @@ function braid_fetch (url, params = {}) {
         // ... and we're done.
     })
 
-    promise.andThen               = andThen
+    promise.andThen = andThen
     promise[Symbol.asyncIterator] = iterator
 
     return promise
 }
 
 // Parse a stream of versions from the incoming bytes
-async function handle_fetch_stream (stream, cb) {
+async function handle_fetch_stream(stream, cb) {
     if (is_nodejs)
         stream = to_whatwg_stream(stream)
 
@@ -318,13 +318,13 @@ async function handle_fetch_stream (stream, cb) {
     var reader = stream.getReader(),
         decoder = new TextDecoder('utf-8'),
         parser = subscription_parser(cb)
-    
+
     while (true) {
         var versions = []
 
         try {
             // Read the next chunk of stream!
-            var {done, value} = await reader.read()
+            var { done, value } = await reader.read()
 
             // Check if this connection has been closed!
             if (done) {
@@ -353,33 +353,36 @@ async function handle_fetch_stream (stream, cb) {
 
 var subscription_parser = (cb) => ({
     // A parser keeps some parse state
-    state: {input: ''},
+    state: { input: '' },
 
     // And reports back new versions as soon as they are ready
     cb: cb,
 
     // You give it new input information as soon as you get it, and it will
     // report back with new versions as soon as it finds them.
-    read (input) {
+    read(input) {
 
         // Store the new input!
         this.state.input += input
 
         // Now loop through the input and parse until we hit a dead end
         do {
-            this.state = parse_version (this.state)
+            this.state = parse_version(this.state)
 
             // Maybe we parsed a version!  That's cool!
             if (this.state.result === 'success') {
+                console.log(this.state)
                 this.cb({
                     version: this.state.version,
                     parents: this.state.parents,
-                    body:    this.state.body,
-                    patches: this.state.patches
+                    body: this.state.body,
+                    patches: this.state.patches,
+                    peer: this.state.peer,
+                    "Merge-Type": this.state.mergeType
                 })
 
                 // Reset the parser for the next version!
-                this.state = {input: this.state.input}
+                this.state = { input: this.state.input }
             }
 
             // Or maybe there's an error to report upstream
@@ -409,7 +412,7 @@ var subscription_parser = (cb) => ({
 //  => {result: 'error', ...}    If there is a syntax error in the input
 
 
-function parse_version (state) {
+function parse_version(state) {
     // If we don't have headers yet, let's try to parse some
     if (!state.headers) {
         var parsed = parse_headers(state.input)
@@ -425,6 +428,8 @@ function parse_version (state) {
         state.headers = parsed.headers
         state.version = state.headers.version
         state.parents = state.headers.parents
+        state.peer = state.headers.peer
+        state.mergeType = state.headers["merge-type"]
 
         // Take the parsed headers out of the buffer
         state.input = parsed.input
@@ -434,13 +439,13 @@ function parse_version (state) {
     return parse_body(state)
 }
 
-function swallow_blank_lines (input) {
+function swallow_blank_lines(input) {
     var blank_lines = /(\r\n|\n)*/.exec(input)[0]
     return input.substr(blank_lines.length)
 }
 
 // Parsing helpers
-function parse_headers (input) {
+function parse_headers(input) {
     input = swallow_blank_lines(input)
 
     // First, find the start & end block of the headers.  The headers start
@@ -452,12 +457,12 @@ function parse_headers (input) {
     // ...if we found none, then we need to wait for more input to complete
     // the headers..
     if (!headers_end)
-        return {result: 'waiting'}
+        return { result: 'waiting' }
 
     // We now know where the headers are to parse!
     var headers_length = headers_end.index + headers_end[1].length,
         headers_source = input.substring(0, headers_length)
-    
+
     // Let's parse them!  First define some variables:
     var headers = {},
         header_regex = /([\w-_]+):\s?(.*)\r?\n/gy,  // Parses one line a time
@@ -466,7 +471,7 @@ function parse_headers (input) {
 
     // And now loop through the block, matching one line at a time
     while (match = header_regex.exec(headers_source)) {
-        // console.log('Header match:', match && [match[1], match[2]])
+        console.log('Header match:', match && [match[1], match[2]])
         headers[match[1].toLowerCase()] = match[2]
 
         // This might be the last line of the headers block!
@@ -488,7 +493,7 @@ function parse_headers (input) {
     if ('version' in headers)
         headers.version = JSON.parse(headers.version)
     if ('parents' in headers)
-        headers.parents = JSON.parse('['+headers.parents+']')
+        headers.parents = JSON.parse('[' + headers.parents + ']')
     if ('patches' in headers)
         headers.patches = JSON.parse(headers.patches)
 
@@ -507,7 +512,7 @@ function parse_headers (input) {
     return { result: 'success', headers, input }
 }
 
-function parse_body (state) {
+function parse_body(state) {
     // Parse Body Snapshot
 
     var content_length = parseInt(state.headers['content-length'])
@@ -529,11 +534,11 @@ function parse_body (state) {
     else if (state.headers.patches) {
         state.patches = state.patches || []
 
-        var last_patch = state.patches[state.patches.length-1]
+        var last_patch = state.patches[state.patches.length - 1]
 
         // Parse patches until the final patch has its content filled
         while (!(state.patches.length === state.headers.patches
-                 && 'content' in last_patch)) {
+            && 'content' in last_patch)) {
 
             state.input = state.input.trimStart()
 
@@ -587,7 +592,7 @@ function parse_body (state) {
                 }
 
                 // Content-range is of the form '<unit> <range>' e.g. 'json .index'
-                
+
                 var match = last_patch.headers['content-range'].match(/(\S+) (.*)/)
                 if (!match)
                     return {

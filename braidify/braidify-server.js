@@ -3,8 +3,8 @@ var assert = require('assert')
 // Write an array of patches into the pseudoheader format.
 function generate_patches(res, patches) {
     for (let patch of patches) {
-        assert(typeof patch.unit    === 'string')
-        assert(typeof patch.range   === 'string')
+        assert(typeof patch.unit === 'string')
+        assert(typeof patch.range === 'string')
         assert(typeof patch.content === 'string')
     }
 
@@ -32,7 +32,7 @@ ${patch.content}\r
 
 // This function reads num_patches in pseudoheader format from a
 // ReadableStream and then fires a callback when they're finished.
-function parse_patches (req, cb) {
+function parse_patches(req, cb) {
     // Todo: make this work in the case where there is no Patches: header, but
     // Content-Range is still set, nonetheless.
 
@@ -44,7 +44,7 @@ function parse_patches (req, cb) {
     if (num_patches === 0)
         return cb(patches)
 
-    stream.on('data', function parse (chunk) {
+    stream.on('data', function parse(chunk) {
         // Merge the latest chunk into our buffer
         buffer = (buffer + chunk)
 
@@ -89,10 +89,10 @@ function parse_patches (req, cb) {
             var [unit, range] = headers['content-range'].match(/(\S+) (.*)/).slice(1)
             var patch_content =
                 buffer.substring(headers_length + blank_line.length,
-                                 headers_length + blank_line.length + body_length)
+                    headers_length + blank_line.length + body_length)
 
             // We've got our patch!
-            patches.push({unit, range, content: patch_content})
+            patches.push({ unit, range, content: patch_content })
 
             buffer = buffer.substring(headers_length + blank_line.length + body_length)
         }
@@ -110,7 +110,7 @@ function parse_patches (req, cb) {
     })
 }
 
-function braidify (req, res, next) {
+function braidify(req, res, next) {
     // console.log('\n## Braidifying', req.method, req.url, req.headers.peer)
 
     // First, declare that we support Patches and JSON ranges.
@@ -120,7 +120,7 @@ function braidify (req, res, next) {
 
     // Extract braid info from headers
     var version = req.headers.version && JSON.parse(req.headers.version),
-        parents = req.headers.parents && JSON.parse('['+req.headers.parents+']'),
+        parents = req.headers.parents && JSON.parse('[' + req.headers.parents + ']'),
         peer = req.headers['peer'],
         url = req.url.substr(1)
 
@@ -130,9 +130,11 @@ function braidify (req, res, next) {
         subscribe = true
 
     // Define convenience variables
-    req.version   = version
-    req.parents   = parents
+    req.version = version
+    req.parents = parents
     req.subscribe = subscribe
+    req.mergeType = req.headers["merge-type"]
+    req.peer = peer
 
     // Add the braidly request/response helper methods
     res.sendVersion = (stuff) => send_version(res, stuff, req.url, peer)
@@ -143,12 +145,12 @@ function braidify (req, res, next) {
         (done, err) => parse_patches(
             req,
             (patches) => done(patches.map(
-                p => ({...p, content: JSON.parse(p.content)})
+                p => ({ ...p, content: JSON.parse(p.content) })
             ))
         )
     )
     req.startSubscription = res.startSubscription =
-        function startSubscription (args = {}) {
+        function startSubscription(args = {}) {
             // console.log('Starting subscription!')
             // console.log('Timeouts are:',
             //             req.socket.server.timeout,
@@ -165,7 +167,7 @@ function braidify (req, res, next) {
             res.setHeader('cache-control', 'no-cache, no-transform')
 
             var connected = true
-            function disconnected (x) {
+            function disconnected(x) {
                 if (!connected) return
                 connected = false
                 // console.log(`Connection closed on ${req.url} from`, x, 'event')
@@ -175,9 +177,9 @@ function braidify (req, res, next) {
                     args.onClose()
             }
 
-            res.on('close',   x => disconnected('close'))
-            res.on('finish',  x => disconnected('finish'))
-            req.on('abort',   x => disconnected('abort'))
+            res.on('close', x => disconnected('close'))
+            res.on('finish', x => disconnected('finish'))
+            req.on('abort', x => disconnected('abort'))
         }
 
     // Check the Useragent to work around Firefox bugs
@@ -188,15 +190,15 @@ function braidify (req, res, next) {
 }
 
 function send_version(res, data, url, peer) {
-    var {version, parents, patches, body} = data
+    var { mergeType, version, parents, patches, body } = data
 
-    function set_header (key, val) {
+    function set_header(key, val) {
         if (res.isSubscription)
             res.write(`${key}: ${val}\r\n`)
         else
             res.setHeader(key, val)
     }
-    function write_body (body) {
+    function write_body(body) {
         if (res.isSubscription)
             res.write('\r\n' + body + '\r\n')
         else
@@ -216,6 +218,11 @@ function send_version(res, data, url, peer) {
 
     // Write the headers or virtual headers
     for (var [header, value] of Object.entries(data)) {
+        if (value == undefined)
+            continue
+
+        console.log(`Header: ${header} = ${value}`)
+
         // Version and Parents get output in the Structured Headers format
         if (header === 'version')
             value = JSON.stringify(value)
@@ -225,6 +232,7 @@ function send_version(res, data, url, peer) {
         // We don't output patches or body yet
         else if (header === 'patches' || header == 'body')
             continue
+
 
         set_header(header, value)
     }
