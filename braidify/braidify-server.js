@@ -1,5 +1,3 @@
-var assert = require('assert')
-
 // Write an array of patches into the pseudoheader format.
 function generate_patches(res, patches) {
     for (let patch of patches) {
@@ -221,7 +219,7 @@ function send_version(res, data, url, peer) {
         if (value == undefined)
             continue
 
-        console.log(`Header: ${header} = ${value}`)
+        // console.log(`Header: ${header} = ${value}`)
 
         // Version and Parents get output in the Structured Headers format
         if (header === 'version')
