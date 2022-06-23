@@ -371,7 +371,7 @@ var subscription_parser = (cb) => ({
 
             // Maybe we parsed a version!  That's cool!
             if (this.state.result === 'success') {
-                console.log(this.state)
+                // console.log(this.state)
                 this.cb({
                     version: this.state.version,
                     parents: this.state.parents,
@@ -471,7 +471,7 @@ function parse_headers(input) {
 
     // And now loop through the block, matching one line at a time
     while (match = header_regex.exec(headers_source)) {
-        console.log('Header match:', match && [match[1], match[2]])
+        // console.log('Header match:', match && [match[1], match[2]])
         headers[match[1].toLowerCase()] = match[2]
 
         // This might be the last line of the headers block!

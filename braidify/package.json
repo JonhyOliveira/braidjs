@@ -1,6 +1,6 @@
 {
   "name": "braidify-alt",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "description": "Synchronization for the Web (reference implementation)",
   "scripts": {
     "test": "node test/server.js",
