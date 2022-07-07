@@ -190,15 +190,22 @@ function braidify(req, res, next) {
 function send_version(res, data, url, peer) {
     var { mergeType, version, parents, patches, body } = data
 
+    var messageByteLength = 0
+
     function set_header(key, val) {
-        if (res.isSubscription)
-            res.write(`${key}: ${val}\r\n`)
-        else
+        if (res.isSubscription) {
+            let x = `${key}: ${val}\r\n`
+            res.write(x)
+            messageByteLength += x.length
+        } else
             res.setHeader(key, val)
     }
     function write_body(body) {
-        if (res.isSubscription)
-            res.write('\r\n' + body + '\r\n')
+        if (res.isSubscription) {
+            let x = '\r\n' + body + '\r\n'
+            res.write(x)
+            messageByteLength += x.length
+        }
         else
             res.write(body)
     }
@@ -258,6 +265,8 @@ function send_version(res, data, url, peer) {
         for (var i = 0; i < 1 + extra_newlines; i++)
             res.write("\r\n")
     }
+
+    return messageByteLength
 }
 
 

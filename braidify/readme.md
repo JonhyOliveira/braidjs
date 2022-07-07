@@ -1,3 +1,5 @@
+# Notice: this is a fork!
+
 # Braidify
 
 Easily add the [Braid Protocol](https://braid.org) to existing Javascript.
