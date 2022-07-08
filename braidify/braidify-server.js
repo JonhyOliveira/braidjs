@@ -1,3 +1,5 @@
+const assert = require('assert')
+
 // Write an array of patches into the pseudoheader format.
 function generate_patches(res, patches) {
     for (let patch of patches) {
